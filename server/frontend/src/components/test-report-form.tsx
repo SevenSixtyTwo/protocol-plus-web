@@ -1,28 +1,34 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ProtocolField } from "./ProtocolField"
-import { TestToolSearch } from "./TestToolSearch"
-import { MotorSearch } from "./MotorSearch"
-import { TemplateAndMotorTypeSelector } from "./TemplateAndMotorTypeSelector"
+import { ProtocolField } from "@/components/protocol-field"
+import { TestToolSearch } from "@/components/test-tool-search"
+import { MotorSearch } from "@/components/motor-search"
+import { TemplateAndMotorTypeSelector } from "@/components/template-and-motor-type-selector"
+import { getProtocolFields, submitTestReport, TestTool, Motor, FieldType } from "@/utils/api"
 
 export function TestReportFormComponent() {
-  const [protocolFields, setProtocolFields] = useState([])
-  const [testTools, setTestTools] = useState([])
-  const [motorInfo, setMotorInfo] = useState(null)
+  const [protocolFields, setProtocolFields] = useState<FieldType[]>([])
+  const [testTools, setTestTools] = useState<TestTool[]>([])
+  const [motorInfo, setMotorInfo] = useState<Motor | null>(null)
 
-  const generateProtocolFields = (fields) => {
-    setProtocolFields(fields)
+  const generateProtocolFields = async (templateId: string, motorTypeId: string) => {
+    try {
+      const fields = await getProtocolFields(templateId, motorTypeId)
+      setProtocolFields(fields)
+    } catch (error) {
+      console.error("Failed to fetch protocol fields:", error)
+    }
   }
 
-  const updateProtocolField = (fieldName, subIndex, key, value) => {
+  const updateProtocolField = (fieldName: string, subIndex: number | null, key: string, value: string) => {
     setProtocolFields(prevFields => 
       prevFields.map(field => {
         if (field && field.name === fieldName) {
-          if (field.type === "group" && field.fields) {
+          if (field.type === "group" && field.fields && subIndex !== null) {
             return {
               ...field,
               fields: field.fields.map((subField, index) => 
@@ -38,12 +44,31 @@ export function TestReportFormComponent() {
     )
   }
 
-  const addTestTool = (tool) => {
+  const addTestTool = (tool: TestTool) => {
     setTestTools(prevTools => [...prevTools, tool])
   }
 
-  const setMotor = (motor) => {
+  const setMotor = (motor: Motor) => {
     setMotorInfo(motor)
+  }
+
+  const handleSubmitReport = async () => {
+    if (!motorInfo) {
+      console.error("No motor selected")
+      return
+    }
+
+    try {
+      await submitTestReport({
+        protocolFields,
+        testTools,
+        motor: motorInfo
+      })
+      console.log("Test report submitted successfully")
+      // Reset form or show success message
+    } catch (error) {
+      console.error("Failed to submit test report:", error)
+    }
   }
 
   return (
@@ -130,7 +155,7 @@ export function TestReportFormComponent() {
         </CardContent>
       </Card>
 
-      <Button className="w-full">Generate Report</Button>
+      <Button className="w-full" onClick={handleSubmitReport}>Generate Report</Button>
     </div>
   )
 }
